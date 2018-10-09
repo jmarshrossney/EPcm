@@ -9,10 +9,12 @@ from params import *
 # Set default plotting parameters
 plt.rcParams['xtick.direction'] = 'in'
 plt.rcParams['ytick.direction'] = 'in'
-plt.rcParams['xtick.top'] = True
-plt.rcParams['ytick.right'] = True
-plt.rcParams['axes.formatter.useoffset'] = False
 plt.rcParams['font.size'] = 8
+# Prevent axis offset: doing this via rcParams only works for some matplotlib versions
+# Can do it individually for each axis ( ax.ticklabel_format(useOffset=False) ) but ughh
+if 'axes.formatter.useoffset' in plt.rcParams.keys():
+    plt.rcParams['axes.formatter.useoffset'] = False
+    plt.rcParams['axes.formatter.limits'] = (-2,4) # also use scientific notation
 
 # Colour scheme
 cs = {
@@ -36,7 +38,7 @@ cs = {
       } 
 
 def load_data(loc):
-    """ """
+    """ Load output data from a simulation, from loc/box1.out, loc/box2.out, loc/glob.out """
     # ------- #
     #  Box 1  #
     # ------- #
@@ -95,30 +97,32 @@ def temperatures(box1, box2, glob):
 
     time = glob['time'] / YEAR
 
-    
     fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(3, 2, sharex='all')
     fig.suptitle("Temperatures")
 
     ax1.set_title("Tropics")
     ax1.set_ylabel("Temperature (K)")
-    ax1.plot(time, box1['Ta'], color=cs['atm'], label="Atm.")
+    atm, = ax1.plot(time, box1['Ta'], color=cs['atm'], label="Atm.")
 
     ax2.set_title("Extra-Tropics")
-    ax2.plot(time, box2['Ta'], color=cs['atm'], label="Atm.")
+    ax2.plot(time, box2['Ta'], color=cs['atm'])
     
     ax3.set_ylabel("Temperature (K)")
-    ax3.plot(time, box1['Ts'], color=cs['surf'], label="Surf.")
+    surf, = ax3.plot(time, box1['Ts'], color=cs['surf'], label="Surf.")
 
-    ax4.plot(time, box2['Ts'], color=cs['surf'], label="Surf.")
+    ax4.plot(time, box2['Ts'], color=cs['surf'])
 
     ax5.set_xlabel("Time (years)")
     ax5.set_ylabel("Temperature (K)")
-    ax5.plot(time, box1['To'], color=cs['oce'], label="Oce.")
+    oce, = ax5.plot(time, box1['To'], color=cs['oce'], label="Oce.")
 
     ax6.set_xlabel("Time (years)")
-    ax6.plot(time, box2['To'], color=cs['oce'], label="Oce.")
+    ax6.plot(time, box2['To'], color=cs['oce'])
+   
+    handles = [atm, surf, oce]
+    labels = [h.get_label() for h in handles]
+    fig.legend(handles=handles, labels=labels, loc=(0.85,0.45))
     
-    fig.legend(loc=(0.85,0.45))
     fig.tight_layout(rect=[0,0.03,1,0.95])
 
     return fig
@@ -136,28 +140,31 @@ def transport(box1, box2, glob):
 
     ax1.set_title("Heat transport")
     ax1.set_ylabel("Power ($10^{15}W$)")
-    ax1.plot(time, (glob['Fa'] * np.pi*RADIUS**2) / PW, color=cs['atm'], label="Atm.")
+    atm, = ax1.plot(time, (glob['Fa'] * np.pi*RADIUS**2) / PW, color=cs['atm'], label="Atm.")
 
     ax2.set_title("Circulation strength")
     ax2.set_ylabel("Flow ($10^9 kg/s$)")
-    ax2.plot(time, glob['Psia'] / SV, color=cs['atm'], label="Atm.")
+    ax2.plot(time, glob['Psia'] / SV, color=cs['atm'])
     
     ax3.set_ylabel("Power ($10^{15}W$)")
-    ax3.plot(time, (glob['Fo'] * np.pi*RADIUS**2) / PW, color=cs['oce'], label="Oce.")
+    oce, = ax3.plot(time, (glob['Fo'] * np.pi*RADIUS**2) / PW, color=cs['oce'], label="Oce.")
 
     ax4.set_ylabel("Flow ($10^9 kg/s$)")
-    ax4.plot(time, glob['Psio'] / SV, color=cs['oce'], label="Oce.")
+    ax4.plot(time, glob['Psio'] / SV, color=cs['oce'])
 
     ax5.set_xlabel("Time (years)")
     ax5.set_ylabel("Power ($10^{15}W$)")
-    ax5.plot(time, ((glob['Fo']+glob['Fa']) * np.pi*RADIUS**2) / PW, color=cs['oatot'], label="Atm.+Oce.")
-    
+    atmoce, = ax5.plot(time, ((glob['Fo']+glob['Fa']) * np.pi*RADIUS**2) / PW, color=cs['oatot'], label="Atm.+Oce.")
+
     ax6.set_title("Moisture transport")
     ax6.set_xlabel("Time (years)")
     ax6.set_ylabel("Flow ($10^9 kg/s$)")
     ax6.plot(time, glob['MTspt'] / SV, color=cs['x'])
    
-    fig.legend(loc=(0.8,0.45))
+    handles = [atm, oce, atmoce]
+    labels = [h.get_label() for h in handles]
+    fig.legend(handles=handles, labels=labels, loc=(0.8,0.45))
+
     fig.tight_layout(rect=[0,0.03,1,0.95])
     
     return fig
@@ -178,7 +185,7 @@ def hydro(box1, box2, glob):
     
     # Box 2
     evap2 = box2['Feva'] * (np.pi*RADIUS**2) / LV           # Evaporation in kg/s
-    prcp2 = evap2 - glob['MTspt']                           # Precipitation in kg/s
+    prcp2 = evap2 + glob['MTspt']                           # Precipitation in kg/s
     prcp2_mmday = (1000*prcp2*DAY) / (RHO*np.pi*RADIUS**2)  # in mm/day
     q2 = (box2['MSE'] - CPA*0.5*(box2['Ta']+box2['Ts']))/LV # Low level spec. humidity in kg/kg
     
@@ -314,17 +321,20 @@ def carbon_dioxide(box1, box2, glob):
 
     ax2.set_title("Average temperature")
     ax2.set_ylabel("Temperature (K)")
-    ax2.plot(time, 0.5*(box1['Ta']+box2['Ta']), color=cs['atm'], label="Atm.")
+    atm, = ax2.plot(time, 0.5*(box1['Ta']+box2['Ta']), color=cs['atm'], label="Atm.")
     
     ax3.set_title("Average temperature")
     ax3.set_xlabel("Time (years)")
     ax3.set_ylabel("Temperature (K)")
-    ax3.plot(time, 0.5*(box1['Ts']+box2['Ts']), color=cs['surf'], label="Surf.")
+    surf, = ax3.plot(time, 0.5*(box1['Ts']+box2['Ts']), color=cs['surf'], label="Surf.")
     
     ax4.set_xlabel("Time (years)")
-    ax4.plot(time, 0.5*(box1['To']+box2['To']), color=cs['oce'], label="Oce.")
+    oce, = ax4.plot(time, 0.5*(box1['To']+box2['To']), color=cs['oce'], label="Oce.")
 
-    fig.legend(loc=(0.85, 0.6))
+    handles = [atm, surf, oce]
+    labels = [h.get_label() for h in handles]
+    fig.legend(handles=handles, labels=labels, loc=(0.85, 0.6))
+    
     fig.tight_layout()
     
     return fig
@@ -346,7 +356,6 @@ def ocean(box1, box2, glob):
     hc2_th = HCO * box2['To']       # thermocline
     hc2_tot = hc2_ml + hc2_th       # total for box 2
 
-
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, sharex='all')
     fig.suptitle("Ocean")
 
@@ -355,7 +364,6 @@ def ocean(box1, box2, glob):
     ax1.plot(time, box1['Ts'], color=cs['T'], label="Trop.")
     ax1.plot(time, box2['Ts'], color=cs['ET'], label="E-Trop.")
     ax1.plot(time, 0.5*(box1['Ts']+box2['Ts']), color=cs['av'], label="Av.")
-    #ax1.legend()
 
     ax2.set_title("Ocean Temperatures")
     ax2.set_ylabel("Temperature (K)")

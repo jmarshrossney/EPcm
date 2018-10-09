@@ -24,7 +24,7 @@ or just download and unzip.
 ### Model documentation
 
 Before you start, have a read of the [model documentation](http://www.sp.ph.ic.ac.uk/~aczaja/EP/EP2009-2010/ModelDocumentation.pdf).
-It describes the model variables, equations, diagnostics, parameters and gives some example experiments.
+It describes the model variables, equations, diagnostics, parameters and suggests some example experiments.
 
 ### Choosing simulation parameters
 
@@ -78,7 +78,7 @@ python plot.py co2_doubling/tau_10years/ save all
 
 ## Example plots
 
-(Miniaturised) plots obtained using 'control' starting temperatures, but with water vapour feedback and carbon dioxide increasing over a timescale of 100 years.
+(Miniaturised) plots obtained using 'control' starting temperatures, but with water vapour feedback switched on and carbon dioxide increasing over a timescale of 100 years.
 
 ![](/example_figs/temps.png) ![](/example_figs/flux.png)
 ![](/example_figs/hydro.png) ![](/example_figs/co2.png)
